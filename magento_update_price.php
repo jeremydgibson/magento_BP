@@ -51,7 +51,7 @@ try {
 }
 
 //authentication, probably hide this in a separate file
-$client = new SoapClient('http://growershouse.com/api/soap/?wsdl');//MAGENTOHOST==yoursiteurl
+$client = new SoapClient('http://MAGENTOHOST/api/soap/?wsdl');//MAGENTOHOST==yoursiteurl
 $fp = fopen("php://stdin", "r");
 $apiUser = '';
 $apiKey = '';
