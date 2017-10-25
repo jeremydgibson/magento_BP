@@ -105,7 +105,7 @@ foreach ($product_info as $indiv_product) {
   
 	$result = $client->call($session, 'catalog_product.update', array($indiv_product['SKU'], array(
     	'price' => $indiv_product['price']
-	)));
+	),null, 'sku'));
 
   } catch (Exception $e) {
     
