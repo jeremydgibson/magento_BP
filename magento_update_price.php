@@ -51,7 +51,7 @@ try {
 }
 
 //authentication, probably hide this in a separate file
-$client = new SoapClient('http://growershouse.com/api/soap/?wsdl');//MAGENTOHOST==yoursiteurl
+$client = new SoapClient('http://MAGENTOHOST/api/soap/?wsdl');//MAGENTOHOST==yoursiteurl
 $fp = fopen("php://stdin", "r");
 $apiUser = '';
 $apiKey = '';
@@ -99,35 +99,20 @@ while(true) {
 
 $SKUs_not_added = Array();
 
-//TODO: test and try/catch for SKU, price, and any other keys in the CSV.
 foreach ($product_info as $indiv_product) {
+
   try{
+  
 	$result = $client->call($session, 'catalog_product.update', array($indiv_product['SKU'], array(
     	'price' => $indiv_product['price']
 	)));
 
-} catch (Exception $e) {
-  echo "\n".$result."\n";
-echo "begin error dump:\n";
-var_dump($e);
-
-  if ($result==101){
-
-    $SKUs_not_added[$indiv_product['SKU']]="101";
-
-  } else if ($result==102){
-
-    $SKUs_not_added[$indiv_product['SKU']]="102";
-  } else {
-
-    $SKUs_not_added[$indiv_product['SKU']]="some other problem";
-  }
-
-  continue;
+  } catch (Exception $e) {
+    
+    $SKUs_not_added[$indiv_product['SKU']] = $e->faultstring;    
+    
+    continue;
 }
-
-
-	var_dump ($result);
 
 	$tier_quantities = explode(",", $indiv_product['tierQuantities']);
 	$tier_prices = explode(",", $indiv_product['tierPrices']);
@@ -145,24 +130,22 @@ var_dump($e);
 			$tierPrices[] = array('customer_group_id' => 'all', 'website' => 'all', 'qty' => trim($tier_quantities[$i]), 'price' => trim($tier_prices[$i]));
 		}
 
+		//get the original tiers on the product.
+    	$originalTierPrices = $client->call($session, 'product_tier_price.info', $indiv_product['SKU']);
 
-//get the original tiers on the product.
-    $originalTierPrices = $client->call($session, 'product_tier_price.info', $indiv_product['SKU']);
+      	foreach ($originalTierPrices as $originalTierPrice) {
 
+       	 if (array_key_exists ('qty' , $originalTierPrice)){
 
+          	$originalTierQuantity = $originalTierPrice['qty'];
+          	
+			//TODO: best approach here would be to avoid the loop below by checking for membership in $tier_quantities (use map first, need to trim space on all of these)
 
-      foreach ($originalTierPrices as $originalTierPrice) {
+          	//$tier_quantities is an array of arrays, we need to know if $originalTierQuantity is in any of those arrays.
+          	$tierPresent = FALSE;
+          	foreach ($tierPrices as $tier) {
 
-        if (array_key_exists ('qty' , $originalTierPrice)){
-
-          $originalTierQuantity = $originalTierPrice['qty']; //what is the right way to do this?
-
-          //$tier_quantities is an array or arrays, we need to know if $originalTierQuantity is in any of those arrays.
-          $tierPresent = FALSE;
-          foreach ($tierPrices as $tier) {
-
-            //using $tier_quantities would be better (could avoid this loop, TODO: look into map in php), but it has strings that might need to be stripped to create a match.
-            if (array_key_exists('qty',$tier) and $tier['qty']==$originalTierQuantity){
+            	if (array_key_exists('qty',$tier) and $tier['qty']==$originalTierQuantity){
 
                 $tierPresent = TRUE;
                 break;
@@ -171,16 +154,13 @@ var_dump($e);
 
           //if the original tier wasn't accounted for in the new data, add the original info back in.
           if (!$tierPresent){
+          
             $tierPrices[] = $originalTierPrice;
           }
 
         }
+        
       }
-
-
-
-//see what this is:
-//var_dump($originalTierPrices);
 
 		//update the tier prices for $indiv_product:
 		$client->call(
@@ -192,18 +172,13 @@ var_dump($e);
 			)
 		);
 
-		var_dump($result); //TODO: log if there was a problem with tier pricing
-
 	}
 
-
-
-	//TODO: log the success SKUs and especially the failure SKUs
 }
 
 if (count($SKUs_not_added)>0){
 
-  echo "SKUs not added(101==badSKU, 102==syntaxError):\n";
+  echo "SKUs not added:\n";
 
   foreach($SKUs_not_added as $sku=>$errorType){
 
