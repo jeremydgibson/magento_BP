@@ -1,4 +1,0 @@
-SKU,price,tierQuantities,tierPrices
-ASDFGH,103.33,"4,8,16","100,96, 92"
-testProduct,13.24,"5, 9","11.72, 10.01"
-productDoesntExist,13.24,"5, 9","11.72, 10.01"
